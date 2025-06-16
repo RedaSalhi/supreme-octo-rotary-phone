@@ -32,3 +32,6 @@ cp .env.example .env.local
 
 # Start development
 npx expo start
+
+**Note:** React Native 0.79 requires React 19. Run `npm install` with the
+updated dependencies to avoid version conflicts.
