@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "supreme-octo-rotary-phone",
-    "slug": "supreme-octo-rotary-phone",
+    "name": "Financial Risk Analyzer",
+    "slug": "financial-risk-analyzer",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -24,6 +24,10 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "scheme": "financial-risk-analyzer"
   }
 }
