@@ -1,0 +1,11 @@
+
+USE_REAL_DATA=true
+
+
+ALPHAVANTAGE_API_KEY='0ZM65PFX02WM5ONI'
+IEX_API_KEY=your_iex_cloud_key_here
+
+
+NODE_ENV=development
+EXPO_PUBLIC_API_URL= 'https://api.yourapp.com'
+EXPO_PUBLIC_ENABLE_ANALYTICS=false
