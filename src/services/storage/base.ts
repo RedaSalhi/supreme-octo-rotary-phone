@@ -456,7 +456,7 @@ export abstract class BaseStorageService {
   // Data Integrity
   // ========================================
 
-  private generateChecksum<T>(data: T): string {
+  protected generateChecksum<T>(data: T): string {
     // Simple checksum using JSON stringification and basic hash
     const str = JSON.stringify(data);
     let hash = 0;
@@ -468,7 +468,7 @@ export abstract class BaseStorageService {
     return hash.toString(36);
   }
 
-  private verifyChecksum<T>(data: T, expectedChecksum: string): boolean {
+  protected verifyChecksum<T>(data: T, expectedChecksum: string): boolean {
     const actualChecksum = this.generateChecksum(data);
     return actualChecksum === expectedChecksum;
   }

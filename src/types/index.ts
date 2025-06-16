@@ -587,7 +587,9 @@ export type ApiProvider =
   | 'polygon' 
   | 'yahoo' 
   | 'twelvedata' 
-  | 'iex';
+  | 'iex'
+  | 'quandl'
+  | 'marketstack';
 
 export type PercentageFormat = 
   | 'decimal' 
@@ -762,3 +764,15 @@ export interface AsyncAction<T = any> {
   fulfilled: (payload: T) => PayloadAction<T>;
   rejected: (error: Error) => PayloadAction<Error>;
 }
+
+// Re-export API types
+export {
+  AssetSearchResult,
+  TimeInterval,
+  ProviderFailover,
+  ApiHealthCheck,
+  PerformanceMetrics,
+  BatchQuoteRequest,
+  HistoricalRequest,
+  SearchRequest
+} from './api';

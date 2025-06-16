@@ -2,6 +2,14 @@
 // src/utils/data/rateLimiter.ts
 // ===========================================
 
+interface RateLimit {
+  requestsPerMinute: number;
+  requestsPerDay: number;
+  currentMinute: number;
+  currentDay: number;
+  resetTime: number;
+}
+
 class RateLimiter {
   private limits = new Map<string, RateLimit>();
 

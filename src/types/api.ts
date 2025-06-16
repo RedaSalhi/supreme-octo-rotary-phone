@@ -189,6 +189,18 @@ export interface RealTimeQuote {
 // Market Data Normalization
 // ========================================
 
+export interface HistoricalDataPoint {
+  timestamp: Date;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  adjustedClose?: number;
+  dividend?: number;
+  split?: number;
+}
+
 export interface NormalizedQuote {
   symbol: string;
   price: number;

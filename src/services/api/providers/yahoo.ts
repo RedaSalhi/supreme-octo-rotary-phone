@@ -3,20 +3,37 @@
 // Yahoo Finance API Integration Service
 // ===========================================
 
-import { BaseApiService, BaseApiConfig, RequestConfig, ApiError } from '../base';
-import {
-  ApiProvider,
-  MarketData,
-  HistoricalDataPoint,
-  AssetSearchResult,
-  TimeInterval,
-  ApiResult,
-  YahooQuoteResponse
-} from '@/types';
+import { BaseApiService, BaseApiConfig, RequestConfig, ApiError, ApiProvider, ApiResult } from '../base';
+import { MarketData, HistoricalDataPoint } from '@/types';
 
 // ========================================
 // Yahoo Finance Specific Types
 // ========================================
+
+export type TimeInterval =
+  | '1min'
+  | '5min'
+  | '15min'
+  | '30min'
+  | '1hour'
+  | '4hour'
+  | '1day'
+  | '1week'
+  | '1month';
+
+export interface AssetSearchResult {
+  symbol: string;
+  name: string;
+  type: string;
+  exchange: string;
+  currency: string;
+  country: string;
+  source: ApiProvider;
+}
+
+export interface YahooQuoteResponse {
+  // Define as needed, or remove if not used
+}
 
 export interface YahooConfig extends BaseApiConfig {
   useProxy?: boolean;
@@ -118,7 +135,7 @@ export class YahooFinanceService extends BaseApiService {
   // ========================================
 
   get providerName(): ApiProvider {
-    return 'yahoo';
+    return 'yahoo_finance';
   }
 
   normalizeError(error: any): ApiError {
@@ -214,7 +231,27 @@ export class YahooFinanceService extends BaseApiService {
     const response = await this.makeRequest<YahooHistoricalResponse>(config);
     
     if (response.status === 'error') {
-      return response;
+      return {
+        status: 'error',
+        error: response.error ?? new ApiError({
+          provider: this.providerName,
+          code: 'UNKNOWN_ERROR',
+          message: 'Unknown error occurred'
+        }),
+        timestamp: new Date()
+      };
+    }
+
+    if (!response.data) {
+      return {
+        status: 'error',
+        error: new ApiError({
+          provider: this.providerName,
+          code: 'INVALID_RESPONSE',
+          message: 'No data received from API'
+        }),
+        timestamp: new Date()
+      };
     }
 
     return {
@@ -242,7 +279,27 @@ export class YahooFinanceService extends BaseApiService {
     const response = await this.makeRequest<YahooHistoricalResponse>(config);
     
     if (response.status === 'error') {
-      return response;
+      return {
+        status: 'error',
+        error: response.error ?? new ApiError({
+          provider: this.providerName,
+          code: 'UNKNOWN_ERROR',
+          message: 'Unknown error occurred'
+        }),
+        timestamp: new Date()
+      };
+    }
+
+    if (!response.data) {
+      return {
+        status: 'error',
+        error: new ApiError({
+          provider: this.providerName,
+          code: 'INVALID_RESPONSE',
+          message: 'No data received from API'
+        }),
+        timestamp: new Date()
+      };
     }
 
     return {
@@ -274,7 +331,27 @@ export class YahooFinanceService extends BaseApiService {
     const response = await this.makeRequest<YahooHistoricalResponse>(config);
     
     if (response.status === 'error') {
-      return response;
+      return {
+        status: 'error',
+        error: response.error ?? new ApiError({
+          provider: this.providerName,
+          code: 'UNKNOWN_ERROR',
+          message: 'Unknown error occurred'
+        }),
+        timestamp: new Date()
+      };
+    }
+
+    if (!response.data) {
+      return {
+        status: 'error',
+        error: new ApiError({
+          provider: this.providerName,
+          code: 'INVALID_RESPONSE',
+          message: 'No data received from API'
+        }),
+        timestamp: new Date()
+      };
     }
 
     return {
@@ -301,7 +378,27 @@ export class YahooFinanceService extends BaseApiService {
     const response = await this.makeRequest<YahooSearchResponse>(config);
     
     if (response.status === 'error') {
-      return response;
+      return {
+        status: 'error',
+        error: response.error ?? new ApiError({
+          provider: this.providerName,
+          code: 'UNKNOWN_ERROR',
+          message: 'Unknown error occurred'
+        }),
+        timestamp: new Date()
+      };
+    }
+
+    if (!response.data) {
+      return {
+        status: 'error',
+        error: new ApiError({
+          provider: this.providerName,
+          code: 'INVALID_RESPONSE',
+          message: 'No data received from API'
+        }),
+        timestamp: new Date()
+      };
     }
 
     return {
@@ -323,7 +420,27 @@ export class YahooFinanceService extends BaseApiService {
     const response = await this.makeRequest<any>(config);
     
     if (response.status === 'error') {
-      return response;
+      return {
+        status: 'error',
+        error: response.error ?? new ApiError({
+          provider: this.providerName,
+          code: 'UNKNOWN_ERROR',
+          message: 'Unknown error occurred'
+        }),
+        timestamp: new Date()
+      };
+    }
+
+    if (!response.data) {
+      return {
+        status: 'error',
+        error: new ApiError({
+          provider: this.providerName,
+          code: 'INVALID_RESPONSE',
+          message: 'No data received from API'
+        }),
+        timestamp: new Date()
+      };
     }
 
     return {
@@ -345,7 +462,27 @@ export class YahooFinanceService extends BaseApiService {
     const response = await this.makeRequest<any>(config);
     
     if (response.status === 'error') {
-      return response;
+      return {
+        status: 'error',
+        error: response.error ?? new ApiError({
+          provider: this.providerName,
+          code: 'UNKNOWN_ERROR',
+          message: 'Unknown error occurred'
+        }),
+        timestamp: new Date()
+      };
+    }
+
+    if (!response.data) {
+      return {
+        status: 'error',
+        error: new ApiError({
+          provider: this.providerName,
+          code: 'INVALID_RESPONSE',
+          message: 'No data received from API'
+        }),
+        timestamp: new Date()
+      };
     }
 
     return {

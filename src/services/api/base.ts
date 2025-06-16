@@ -3,16 +3,59 @@
 // Base API Service with Common Functionality
 // ===========================================
 
-import {
-  ApiProvider,
-  ApiResult,
-  ApiError,
-  RateLimitInfo,
-  ApiResponse,
-  ApiErrorDetails,
-  ProviderFailover,
-  ApiConfiguration
-} from '@/types';
+// ========================================
+// Type Definitions
+// ========================================
+
+export type ApiProvider = 'alpha_vantage' | 'yahoo_finance' | 'finnhub' | 'custom';
+
+export interface ApiResult<T> {
+  status: 'success' | 'error';
+  data?: T;
+  error?: ApiError;
+  timestamp: Date;
+  rateLimit?: RateLimitInfo;
+}
+
+export interface ApiResponse<T> {
+  status: 'success' | 'error';
+  data: T;
+  timestamp: Date;
+  rateLimit?: RateLimitInfo;
+}
+
+export interface RateLimitInfo {
+  remaining: number;
+  limit: number;
+  resetTime: Date;
+}
+
+export interface ApiErrorDetails {
+  code: string;
+  message: string;
+  provider: ApiProvider;
+  endpoint?: string;
+  statusCode?: number;
+  rateLimited?: boolean;
+  retryAfter?: number;
+  details?: any;
+}
+
+export interface ProviderFailover {
+  primary: ApiProvider;
+  fallback: ApiProvider;
+  conditions: {
+    maxRetries: number;
+    timeout: number;
+    errorCodes: string[];
+  };
+}
+
+export interface ApiConfiguration {
+  provider: ApiProvider;
+  failover?: ProviderFailover;
+  config: BaseApiConfig;
+}
 
 // ========================================
 // Base Configuration
@@ -139,7 +182,7 @@ export abstract class BaseApiService {
     }
   }
 
-  private async executeRequest<T>(config: RequestConfig): Promise<ApiResponse<T>> {
+  private async executeRequest<T>(config: RequestConfig): Promise<ApiResult<T>> {
     const url = this.buildUrl(config.endpoint, config.params);
     const headers = { ...this.getDefaultHeaders(), ...config.headers };
     
@@ -164,9 +207,8 @@ export abstract class BaseApiService {
       return {
         status: 'success',
         data: this.transformResponse<T>(data),
-        timestamp: new Date(),
-        rateLimit: this.extractRateLimitFromHeaders(response.headers)
-      };
+        timestamp: new Date()
+      } as ApiResult<T>;
 
     } catch (error) {
       clearTimeout(timeoutId);
@@ -231,7 +273,7 @@ export abstract class BaseApiService {
     return undefined;
   }
 
-  private updateRateLimit(response: ApiResponse<any>): void {
+  private updateRateLimit(response: ApiResult<any>): void {
     if (response.rateLimit) {
       this.rateLimit = response.rateLimit;
     } else {
@@ -501,7 +543,7 @@ export class ApiError extends Error {
   public readonly retryAfter?: number;
   public readonly details?: any;
 
-  constructor(details: ApiErrorDetails & { message: string }) {
+  constructor(details: ApiErrorDetails) {
     super(details.message);
     this.name = 'ApiError';
     this.code = details.code || 'UNKNOWN_ERROR';

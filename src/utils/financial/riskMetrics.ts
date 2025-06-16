@@ -3,6 +3,8 @@
 // Advanced Risk Metrics (Updated)
 // ===========================================
 
+import { calculateInformationRatio } from './capm';
+
 /**
  * Comprehensive risk metrics calculations for portfolio analysis
  */
@@ -134,30 +136,6 @@ export function calculateTrackingError(
     .map((ret, i) => ret - benchmarkReturns[i]);
   
   return calculateVolatility(excessReturns, periodsPerYear);
-}
-
-/**
- * Calculate Information Ratio
- */
-export function calculateInformationRatio(
-  portfolioReturns: number[],
-  benchmarkReturns: number[],
-  periodsPerYear: number = 252
-): number {
-  const minLength = Math.min(portfolioReturns.length, benchmarkReturns.length);
-  
-  if (minLength === 0) return 0;
-  
-  const excessReturns = portfolioReturns
-    .slice(0, minLength)
-    .map((ret, i) => ret - benchmarkReturns[i]);
-  
-  const meanExcessReturn = excessReturns.reduce((sum, ret) => sum + ret, 0) / excessReturns.length;
-  const trackingError = calculateVolatility(excessReturns, periodsPerYear);
-  
-  if (trackingError === 0) return 0;
-  
-  return (meanExcessReturn * periodsPerYear) / trackingError;
 }
 
 /**

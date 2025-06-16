@@ -3,6 +3,11 @@
 // ===========================================
 
 import type { CAPMResult } from '../../types';
+import { 
+  calculateSharpeRatio, 
+  calculateAnnualizedReturn, 
+  calculateVolatility 
+} from './riskMetrics';
 
 /**
  * Capital Asset Pricing Model calculations
@@ -24,13 +29,22 @@ export function calculateCAPM(
   const treynorRatio = calculateTreynorRatio(portfolioReturns, riskFreeRate, beta, periodsPerYear);
   const informationRatio = calculateInformationRatio(portfolioReturns, benchmarkReturns, periodsPerYear);
   
+  // Calculate additional required metrics
+  const marketReturn = calculateAnnualizedReturn(benchmarkReturns, periodsPerYear);
+  const trackingError = calculateTrackingError(portfolioReturns, benchmarkReturns, periodsPerYear);
+  const residualVolatility = calculateResidualVolatility(portfolioReturns, benchmarkReturns, beta, periodsPerYear);
+  
   return {
     alpha,
     beta,
     rSquared,
     sharpeRatio,
     treynorRatio,
-    informationRatio
+    informationRatio,
+    marketReturn,
+    riskFreeRate,
+    trackingError,
+    residualVolatility
   };
 }
 
@@ -38,6 +52,11 @@ export function calculateCAPM(
  * Calculate Beta (systematic risk)
  */
 export function calculateBeta(portfolioReturns: number[], benchmarkReturns: number[]): number {
+  if (portfolioReturns.length < 2 || benchmarkReturns.length < 2 || 
+      portfolioReturns.length !== benchmarkReturns.length) {
+    return 0;
+  }
+
   const covariance = calculateCovariance(portfolioReturns, benchmarkReturns);
   const benchmarkVariance = calculateVariance(benchmarkReturns);
   
@@ -95,9 +114,17 @@ export function calculateInformationRatio(
   benchmarkReturns: number[],
   periodsPerYear: number = 252
 ): number {
+  if (portfolioReturns.length < 2 || benchmarkReturns.length < 2) {
+    return 0;
+  }
+
   const minLength = Math.min(portfolioReturns.length, benchmarkReturns.length);
   const excessReturns = portfolioReturns.slice(0, minLength).map((r, i) => r - benchmarkReturns[i]);
   
+  if (excessReturns.length === 0) {
+    return 0;
+  }
+
   const meanExcessReturn = excessReturns.reduce((sum, r) => sum + r, 0) / excessReturns.length;
   const trackingError = calculateVolatility(excessReturns, periodsPerYear);
   
@@ -114,4 +141,80 @@ function calculateVariance(returns: number[]): number {
   
   const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
   return returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / (returns.length - 1);
+}
+
+/**
+ * Calculate covariance between two return series
+ */
+function calculateCovariance(returns1: number[], returns2: number[]): number {
+  if (returns1.length < 2 || returns2.length < 2 || returns1.length !== returns2.length) {
+    return 0;
+  }
+
+  const mean1 = returns1.reduce((sum, r) => sum + r, 0) / returns1.length;
+  const mean2 = returns2.reduce((sum, r) => sum + r, 0) / returns2.length;
+
+  return returns1.reduce((sum, r, i) => 
+    sum + (r - mean1) * (returns2[i] - mean2), 0
+  ) / (returns1.length - 1);
+}
+
+/**
+ * Calculate correlation between two return series
+ */
+function calculateCorrelation(returns1: number[], returns2: number[]): number {
+  if (returns1.length < 2 || returns2.length < 2 || returns1.length !== returns2.length) {
+    return 0;
+  }
+
+  const covariance = calculateCovariance(returns1, returns2);
+  const stdDev1 = Math.sqrt(calculateVariance(returns1));
+  const stdDev2 = Math.sqrt(calculateVariance(returns2));
+
+  if (stdDev1 === 0 || stdDev2 === 0) {
+    return 0;
+  }
+
+  return covariance / (stdDev1 * stdDev2);
+}
+
+/**
+ * Calculate tracking error (standard deviation of excess returns)
+ */
+function calculateTrackingError(
+  portfolioReturns: number[],
+  benchmarkReturns: number[],
+  periodsPerYear: number = 252
+): number {
+  if (portfolioReturns.length < 2 || benchmarkReturns.length < 2) {
+    return 0;
+  }
+
+  const minLength = Math.min(portfolioReturns.length, benchmarkReturns.length);
+  const excessReturns = portfolioReturns
+    .slice(0, minLength)
+    .map((ret, i) => ret - benchmarkReturns[i]);
+  
+  return calculateVolatility(excessReturns, periodsPerYear);
+}
+
+/**
+ * Calculate residual volatility (standard deviation of residuals)
+ */
+function calculateResidualVolatility(
+  portfolioReturns: number[],
+  benchmarkReturns: number[],
+  beta: number,
+  periodsPerYear: number = 252
+): number {
+  if (portfolioReturns.length < 2 || benchmarkReturns.length < 2) {
+    return 0;
+  }
+
+  const minLength = Math.min(portfolioReturns.length, benchmarkReturns.length);
+  const residuals = portfolioReturns
+    .slice(0, minLength)
+    .map((ret, i) => ret - (beta * benchmarkReturns[i]));
+  
+  return calculateVolatility(residuals, periodsPerYear);
 }

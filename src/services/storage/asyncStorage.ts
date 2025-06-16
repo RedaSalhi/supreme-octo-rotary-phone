@@ -86,7 +86,7 @@ export class AsyncStorageService extends BaseStorageService {
 
   async getAllKeys(): Promise<string[]> {
     try {
-      return await AsyncStorage.getAllKeys();
+      return Array.from(await AsyncStorage.getAllKeys());
     } catch (error) {
       throw new StorageError(
         'KEYS_ERROR',
@@ -141,7 +141,7 @@ export class AsyncStorageService extends BaseStorageService {
     try {
       const keyValuePairs = await AsyncStorage.multiGet(keys);
       keys.forEach(key => this.emitEvent('get', key, true));
-      return keyValuePairs;
+      return Array.from(keyValuePairs);
     } catch (error) {
       keys.forEach(key => this.emitEvent('get', key, false, error));
       throw new StorageError(
@@ -155,7 +155,7 @@ export class AsyncStorageService extends BaseStorageService {
   async setMultipleRaw(keyValuePairs: [string, string][]): Promise<void> {
     try {
       await this.enforceStorageLimit();
-      await AsyncStorage.multiSet(keyValuePairs);
+      await AsyncStorage.multiSet(Array.from(keyValuePairs));
       keyValuePairs.forEach(([key]) => this.emitEvent('set', key, true));
     } catch (error) {
       keyValuePairs.forEach(([key]) => this.emitEvent('set', key, false, error));
@@ -169,7 +169,7 @@ export class AsyncStorageService extends BaseStorageService {
 
   async removeMultiple(keys: string[]): Promise<void> {
     try {
-      await AsyncStorage.multiRemove(keys);
+      await AsyncStorage.multiRemove(Array.from(keys));
       keys.forEach(key => this.emitEvent('remove', key, true));
     } catch (error) {
       keys.forEach(key => this.emitEvent('remove', key, false, error));
@@ -462,7 +462,7 @@ export class AsyncStorageService extends BaseStorageService {
           if (entry.data !== undefined && entry.timestamp) {
             // Verify checksum if present
             if (entry.checksum) {
-              const isValid = this.verifyChecksum(entry.data, entry.checksum);
+              const isValid = super.verifyChecksum(entry.data, entry.checksum);
               if (isValid) {
                 results.valid++;
               } else {
@@ -481,19 +481,6 @@ export class AsyncStorageService extends BaseStorageService {
     }
 
     return results;
-  }
-
-  private verifyChecksum<T>(data: T, expectedChecksum: string): boolean {
-    // This would use the same checksum generation logic from the base class
-    // For now, simplified implementation
-    const str = JSON.stringify(data);
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    return hash.toString(36) === expectedChecksum;
   }
 }
 

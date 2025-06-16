@@ -112,3 +112,57 @@ function generateNormalRandom(mean: number = 0, standardDeviation: number = 1): 
   const standardNormal = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
   return mean + standardDeviation * standardNormal;
 }
+
+/**
+ * Parametric Value at Risk (assuming normal distribution)
+ */
+export function calculateParametricVaR(returns: number[], confidenceLevel: number = 0.95): number {
+  if (returns.length === 0) return 0;
+  
+  // Calculate mean and standard deviation
+  const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
+  const variance = returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / (returns.length - 1);
+  const stdDev = Math.sqrt(variance);
+  
+  // Get z-score for confidence level
+  const zScore = getZScore(confidenceLevel);
+  
+  // Parametric VaR = -z * σ - μ
+  return -(zScore * stdDev + mean);
+}
+
+/**
+ * Parametric Conditional Value at Risk (assuming normal distribution)
+ */
+export function calculateCVaR(returns: number[], confidenceLevel: number = 0.95): number {
+  if (returns.length === 0) return 0;
+  
+  // Calculate mean and standard deviation
+  const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
+  const variance = returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / (returns.length - 1);
+  const stdDev = Math.sqrt(variance);
+  
+  // Get z-score for confidence level
+  const zScore = getZScore(confidenceLevel);
+  
+  // Calculate CVaR using normal distribution formula
+  // CVaR = -μ - σ * φ(z) / (1 - α)
+  const normalPDF = Math.exp(-0.5 * Math.pow(zScore, 2)) / Math.sqrt(2 * Math.PI);
+  return -(mean + stdDev * normalPDF / (1 - confidenceLevel));
+}
+
+/**
+ * Get z-score for a given confidence level
+ */
+function getZScore(confidenceLevel: number): number {
+  // Common confidence levels and their z-scores
+  const zScores: { [key: number]: number } = {
+    0.99: 2.326,
+    0.95: 1.645,
+    0.90: 1.282,
+    0.85: 1.036,
+    0.80: 0.842
+  };
+  
+  return zScores[confidenceLevel] || 1.645; // Default to 95% confidence if not found
+}

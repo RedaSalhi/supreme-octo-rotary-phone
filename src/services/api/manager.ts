@@ -11,7 +11,6 @@ import {
   AssetSearchResult,
   TimeInterval,
   ProviderFailover,
-  ApiConfiguration,
   ApiHealthCheck,
   PerformanceMetrics,
   BatchQuoteRequest,
@@ -22,9 +21,9 @@ import {
 import { BaseApiService } from './base';
 import { AlphaVantageService } from './providers/alphavantage';
 // Import other providers as they're implemented
-// import { FinnhubService } from './providers/finnhub';
+import { FinnhubService } from './providers/finnhub';
 // import { PolygonService } from './providers/polygon';
-// import { YahooFinanceService } from './providers/yahoo';
+import { YahooFinanceService } from './providers/yahoo';
 
 // ========================================
 // Configuration Interfaces
@@ -119,18 +118,23 @@ export class ApiManager {
       this.healthStatus.set(provider, {
         provider,
         status: 'online',
-        timestamp: new Date(),
+        lastCheck: new Date(),
         responseTime: 0,
         uptime: 100
       });
 
       this.performanceMetrics.set(provider, {
         provider,
-        avgResponseTime: 0,
-        p95ResponseTime: 0,
-        p99ResponseTime: 0,
+        responseTime: {
+          min: 0,
+          max: 0,
+          avg: 0,
+          p95: 0,
+          p99: 0
+        },
         throughput: 0,
-        errorRate: 0
+        errorRate: 0,
+        availability: 100
       });
     });
   }
@@ -309,7 +313,7 @@ export class ApiManager {
         return availableProviders.sort((a, b) => {
           const aMetrics = this.performanceMetrics.get(a)!;
           const bMetrics = this.performanceMetrics.get(b)!;
-          return aMetrics.avgResponseTime - bMetrics.avgResponseTime;
+          return aMetrics.responseTime.avg - bMetrics.responseTime.avg;
         });
         
       case 'most_reliable':
@@ -341,7 +345,7 @@ export class ApiManager {
 
     // Re-try failed providers after a certain time
     const retryAfter = 5 * 60 * 1000; // 5 minutes
-    return Date.now() - healthCheck.timestamp.getTime() < retryAfter;
+    return Date.now() - healthCheck.lastCheck.getTime() < retryAfter;
   }
 
   private shouldMarkProviderAsFailed(error: any): boolean {
@@ -361,7 +365,7 @@ export class ApiManager {
     const healthCheck = this.healthStatus.get(provider);
     if (healthCheck) {
       healthCheck.status = 'offline';
-      healthCheck.timestamp = new Date();
+      healthCheck.lastCheck = new Date();
     }
 
     // Auto-failover to next provider
@@ -377,7 +381,7 @@ export class ApiManager {
     const healthCheck = this.healthStatus.get(provider);
     if (healthCheck) {
       healthCheck.status = 'online';
-      healthCheck.timestamp = new Date();
+      healthCheck.lastCheck = new Date();
     }
   }
 
@@ -407,7 +411,7 @@ export class ApiManager {
           this.healthStatus.set(provider, {
             provider,
             status: isHealthy ? 'online' : 'degraded',
-            timestamp: new Date(),
+            lastCheck: new Date(),
             responseTime,
             uptime: this.calculateUptime(provider)
           });
@@ -416,7 +420,7 @@ export class ApiManager {
           this.healthStatus.set(provider, {
             provider,
             status: 'offline',
-            timestamp: new Date(),
+            lastCheck: new Date(),
             responseTime: Date.now() - startTime,
             uptime: this.calculateUptime(provider),
             issues: [error instanceof Error ? error.message : 'Health check failed']
@@ -438,7 +442,9 @@ export class ApiManager {
     if (!metrics) return;
 
     // Update response time (rolling average)
-    metrics.avgResponseTime = (metrics.avgResponseTime * 0.9) + (responseTime * 0.1);
+    metrics.responseTime.avg = (metrics.responseTime.avg * 0.9) + (responseTime * 0.1);
+    metrics.responseTime.min = Math.min(metrics.responseTime.min, responseTime);
+    metrics.responseTime.max = Math.max(metrics.responseTime.max, responseTime);
     
     // Update error rate (rolling average)
     const errorOccurred = success ? 0 : 1;
@@ -498,11 +504,12 @@ export class ApiManager {
   }
 
   public updateConfiguration(config: Partial<ApiManagerConfig>): void {
+    // Update configuration
     this.config = { ...this.config, ...config };
-    
-    // Restart monitoring if configuration changed
-    if (this.monitoringInterval && config.monitoring) {
-      clearInterval(this.monitoringInterval);
+
+    // Restart monitoring if interval changed
+    if (this.monitoringInterval) {
+      clearInterval(this.monitoringInterval as unknown as number);
       this.startMonitoring();
     }
   }
@@ -512,19 +519,23 @@ export class ApiManager {
   // ========================================
 
   public dispose(): void {
+    // Clean up resources
     if (this.monitoringInterval) {
-      clearInterval(this.monitoringInterval);
+      clearInterval(this.monitoringInterval as unknown as number);
     }
-    
-    this.providers.forEach(service => {
-      if ('dispose' in service && typeof service.dispose === 'function') {
-        service.dispose();
-      }
-    });
-    
-    this.providers.clear();
+
+    // Clear all caches
+    this.clearCache();
+
+    // Reset state
     this.healthStatus.clear();
     this.performanceMetrics.clear();
+    this.failoverState = {
+      currentProvider: this.config.primaryProvider,
+      failedProviders: new Set(),
+      lastFailoverTime: null,
+      consecutiveFailures: 0
+    };
   }
 }
 
@@ -546,7 +557,7 @@ interface FailoverState {
 export function createApiManager(config?: Partial<ApiManagerConfig>): ApiManager {
   const defaultConfig: ApiManagerConfig = {
     primaryProvider: 'alphavantage',
-    fallbackProviders: ['finnhub', 'polygon', 'yahoo'],
+    fallbackProviders: ['finnhub'],
     providerConfigs: {
       alphavantage: { apiKey: process.env.ALPHAVANTAGE_API_KEY || '' },
       finnhub: { apiKey: process.env.FINNHUB_API_KEY || '' },

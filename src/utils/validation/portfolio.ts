@@ -4,6 +4,7 @@
 
 import type { Asset, Portfolio } from '../../types';
 import type { ValidationResult, PortfolioValidationOptions } from './schemas';
+import { validateAsset } from './assets';
 
 export function validatePortfolio(
   portfolio: Portfolio, 

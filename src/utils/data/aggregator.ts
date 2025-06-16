@@ -3,6 +3,7 @@
 // ===========================================
 
 import type { StockQuote, MarketDataPoint, ApiResponse } from './types';
+import { alphaVantageClient, finnhubClient, polygonClient } from './apiClients';
 
 /**
  * Data aggregation utilities that combine multiple data sources
@@ -59,7 +60,7 @@ export class DataAggregator {
     // Try Polygon first (most reliable for historical data)
     try {
       const polygonResult = await polygonClient.getHistoricalData(symbol, startDate, endDate);
-      if (polygonResult.success && polygonResult.data.length > 0) {
+      if (polygonResult.success && polygonResult.data && polygonResult.data.length > 0) {
         return polygonResult.data;
       }
     } catch (error) {
@@ -69,7 +70,7 @@ export class DataAggregator {
     // Fallback to Alpha Vantage
     try {
       const avResult = await alphaVantageClient.getHistoricalData(symbol);
-      if (avResult.success && avResult.data.length > 0) {
+      if (avResult.success && avResult.data && avResult.data.length > 0) {
         return avResult.data.slice(-days); // Get last N days
       }
     } catch (error) {

@@ -1,11 +1,67 @@
 // ===========================================
-// src/utils/financial/optimization.ts
-// Portfolio Optimization Algorithms
+// src/utils/financial/portfolio.ts
+// Portfolio calculations and optimization
 // ===========================================
 
-import type { Asset, OptimizationResult, EfficientFrontierPoint, OptimizationType, PortfolioConstraints } from '../../types';
-import { calculatePortfolioVariance, calculateCovarianceMatrix, normalizeWeights } from './portfolio';
+import type { Asset, OptimizationResult, EfficientFrontierPoint, OptimizationType, PortfolioConstraints, ConvergenceInfo } from '../../types';
 import { calculateVolatility, calculateSharpeRatio, calculateAnnualizedReturn } from './riskMetrics';
+
+/**
+ * Calculate portfolio variance
+ */
+export function calculatePortfolioVariance(weights: number[], covarianceMatrix: number[][]): number {
+  const n = weights.length;
+  let variance = 0;
+  
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      variance += weights[i] * weights[j] * covarianceMatrix[i][j];
+    }
+  }
+  
+  return variance;
+}
+
+/**
+ * Calculate covariance matrix from asset returns
+ */
+export function calculateCovarianceMatrix(assets: Asset[]): number[][] {
+  const n = assets.length;
+  const matrix: number[][] = Array(n).fill(null).map(() => Array(n).fill(0));
+  
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      matrix[i][j] = calculateCovariance(assets[i].returns, assets[j].returns);
+    }
+  }
+  
+  return matrix;
+}
+
+/**
+ * Calculate covariance between two return series
+ */
+function calculateCovariance(returns1: number[], returns2: number[]): number {
+  if (returns1.length < 2 || returns2.length < 2 || returns1.length !== returns2.length) {
+    return 0;
+  }
+
+  const mean1 = returns1.reduce((sum, r) => sum + r, 0) / returns1.length;
+  const mean2 = returns2.reduce((sum, r) => sum + r, 0) / returns2.length;
+
+  return returns1.reduce((sum, r, i) => 
+    sum + (r - mean1) * (returns2[i] - mean2), 0
+  ) / (returns1.length - 1);
+}
+
+/**
+ * Normalize weights to sum to 1
+ */
+export function normalizeWeights(weights: number[]): number[] {
+  const sum = weights.reduce((s, w) => s + w, 0);
+  if (sum === 0) return weights;
+  return weights.map(w => w / sum);
+}
 
 /**
  * Portfolio optimization using Modern Portfolio Theory
@@ -130,6 +186,11 @@ export function optimizeMaxSharpe(
       expectedReturn: portfolioReturn,
       volatility: portfolioRisk,
       sharpeRatio,
+      convergence: {
+        converged: true,
+        iterations: 1,
+        objectiveValue: sharpeRatio
+      },
       metrics: {
         volatility: portfolioRisk,
         sharpeRatio,
@@ -173,6 +234,11 @@ export function optimizeMinVariance(
       expectedReturn: portfolioReturn,
       volatility: portfolioRisk,
       sharpeRatio,
+      convergence: {
+        converged: true,
+        iterations: 1,
+        objectiveValue: portfolioRisk
+      },
       metrics: {
         volatility: portfolioRisk,
         sharpeRatio,
@@ -203,9 +269,13 @@ export function optimizeRiskParity(
   try {
     // Start with equal weights
     let weights = new Array(n).fill(1/n);
+    let iterations = 0;
+    let converged = false;
+    let objectiveValue = Infinity;
     
     // Iterative algorithm to find risk parity weights
     for (let iter = 0; iter < 100; iter++) {
+      iterations = iter + 1;
       const riskContributions = calculateRiskContributions(weights, covarianceMatrix);
       const targetContribution = 1 / n;
       
@@ -223,7 +293,11 @@ export function optimizeRiskParity(
       
       // Check convergence
       const maxDiff = Math.max(...riskContributions.map(rc => Math.abs(rc - targetContribution)));
-      if (maxDiff < 1e-6) break;
+      objectiveValue = maxDiff;
+      if (maxDiff < 1e-6) {
+        converged = true;
+        break;
+      }
     }
     
     const expectedReturns = assets.map(asset => calculateAnnualizedReturn(asset.returns));
@@ -239,6 +313,11 @@ export function optimizeRiskParity(
       expectedReturn: portfolioReturn,
       volatility: portfolioRisk,
       sharpeRatio,
+      convergence: {
+        converged,
+        iterations,
+        objectiveValue
+      },
       metrics: {
         volatility: portfolioRisk,
         sharpeRatio,

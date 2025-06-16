@@ -4,20 +4,14 @@
 // ===========================================
 
 // Base exports
-export { 
+import { 
   BaseStorageService, 
   StorageError, 
   DEFAULT_STORAGE_CONFIG,
   createStorageKey,
   parseStorageKey,
   isExpired,
-  calculateTTL
-} from './base';
-
-export { AsyncStorageService, createAsyncStorageService } from './asyncStorage';
-
-// Types
-export type {
+  calculateTTL,
   StorageConfig,
   StorageEntry,
   StorageStats,
@@ -26,6 +20,31 @@ export type {
   StorageEvent,
   StorageEventListener
 } from './base';
+
+import { AsyncStorageService, createAsyncStorageService } from './asyncStorage';
+
+// Re-export types and functions
+export {
+  BaseStorageService,
+  StorageError,
+  DEFAULT_STORAGE_CONFIG,
+  createStorageKey,
+  parseStorageKey,
+  isExpired,
+  calculateTTL,
+  AsyncStorageService,
+  createAsyncStorageService
+};
+
+export type {
+  StorageConfig,
+  StorageEntry,
+  StorageStats,
+  StorageOptions,
+  StorageResult,
+  StorageEvent,
+  StorageEventListener
+};
 
 // ===========================================
 // Storage Namespaces
@@ -96,7 +115,7 @@ export class PortfolioStorageService {
 
       return {
         success: true,
-        data: portfolios.sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()),
+        data: portfolios.sort((a: any, b: any) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()),
         timestamp: new Date()
       };
     } catch (error) {
@@ -229,8 +248,8 @@ export class MarketDataCacheService {
     const stats = await this.storage.getStats();
     const keys = await this.storage.getKeys(`${this.namespace}:`);
     
-    const quoteKeys = keys.filter(k => k.includes(':quote:'));
-    const historicalKeys = keys.filter(k => k.includes(':historical:'));
+    const quoteKeys = keys.filter((k: string) => k.includes(':quote:'));
+    const historicalKeys = keys.filter((k: string) => k.includes(':historical:'));
     
     return {
       ...stats,

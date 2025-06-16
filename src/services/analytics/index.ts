@@ -3,10 +3,23 @@
 // Analytics Services Main Export & Factory
 // ===========================================
 
-// Main service export
-export { AnalyticsService, createAnalyticsService } from './index';
+import { AnalyticsService } from './service.js';
+import type {
+  AnalyticsEvent,
+  PerformanceEvent,
+  ErrorEvent,
+  UserEvent,
+  AnalyticsConfig,
+  DeviceInfo,
+  SessionInfo,
+  EventType,
+  EventCategory,
+  PerformanceMetric,
+  ErrorSeverity,
+  UserAction
+} from './types.js';
 
-// Types
+// Export types
 export type {
   AnalyticsEvent,
   PerformanceEvent,
@@ -20,10 +33,10 @@ export type {
   PerformanceMetric,
   ErrorSeverity,
   UserAction
-} from './index';
+} from './types.js';
 
-// Re-export the main analytics service for convenience
-import { AnalyticsService } from './index';
+// Export service
+export { AnalyticsService } from './service.js';
 
 // ===========================================
 // Analytics Event Categories
@@ -137,7 +150,7 @@ export class PerformanceMonitor {
     switch (entry.entryType) {
       case 'measure':
         this.analytics.trackPerformance(
-          entry.name as any,
+          entry.name as PerformanceMetric,
           entry.duration,
           'milliseconds',
           { type: 'measure' }
@@ -148,7 +161,7 @@ export class PerformanceMonitor {
         const navEntry = entry as PerformanceNavigationTiming;
         this.analytics.trackPerformance(
           'page_load_time',
-          navEntry.loadEventEnd - navEntry.navigationStart,
+          navEntry.loadEventEnd - navEntry.startTime,
           'milliseconds',
           { type: 'navigation' }
         );
@@ -186,7 +199,7 @@ export class PerformanceMonitor {
     this.timers.delete(name);
 
     this.analytics.trackPerformance(
-      name as any,
+      name as PerformanceMetric,
       duration,
       'milliseconds',
       context
@@ -201,7 +214,7 @@ export class PerformanceMonitor {
     return operation().finally(() => {
       const duration = performance.now() - startTime;
       this.analytics.trackPerformance(
-        name as any,
+        name as PerformanceMetric,
         duration,
         'milliseconds',
         context
@@ -217,7 +230,7 @@ export class PerformanceMonitor {
     } finally {
       const duration = performance.now() - startTime;
       this.analytics.trackPerformance(
-        name as any,
+        name as PerformanceMetric,
         duration,
         'milliseconds',
         context
@@ -280,8 +293,12 @@ export class ErrorTracker {
       };
 
       // Capture unhandled promise rejections
-      this.originalUnhandledRejectionHandler = window.onunhandledrejection;
-      window.onunhandledrejection = (event) => {
+      const originalHandler = window.onunhandledrejection;
+      this.originalUnhandledRejectionHandler = originalHandler ? 
+        (event: PromiseRejectionEvent) => originalHandler.call(window, event) : 
+        undefined;
+      
+      window.onunhandledrejection = (event: PromiseRejectionEvent) => {
         this.trackPromiseRejection(event);
         this.originalUnhandledRejectionHandler?.(event);
       };
@@ -485,8 +502,8 @@ export class AnalyticsManager {
   }
 
   // Convenience methods that delegate to appropriate services
-  track(category: string, action: string, label?: string, value?: number, properties?: Record<string, any>): void {
-    this.analytics.trackEvent(category as any, action, label, value, properties);
+  track(category: EventCategory, action: string, label?: string, value?: number, properties?: Record<string, any>): void {
+    this.analytics.trackEvent(category, action, label, value, properties);
   }
 
   trackScreen(screenName: string, properties?: Record<string, any>): void {
@@ -563,7 +580,7 @@ export function reinitializeAnalyticsManager(config: Partial<AnalyticsConfig>): 
 // Convenience Functions
 // ===========================================
 
-export function track(category: string, action: string, label?: string, value?: number, properties?: Record<string, any>): void {
+export function track(category: EventCategory, action: string, label?: string, value?: number, properties?: Record<string, any>): void {
   getAnalyticsManager().track(category, action, label, value, properties);
 }
 

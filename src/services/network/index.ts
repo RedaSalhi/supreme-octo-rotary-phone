@@ -155,19 +155,19 @@ export class NetworkService {
     // Load offline queue
     const queueResult = await this.storage.get('network:offline_queue');
     if (queueResult.success) {
-      this.offlineQueue = queueResult.data || [];
+      this.offlineQueue = (queueResult.data as OfflineAction[]) || [];
     }
 
     // Load metrics
     const metricsResult = await this.storage.get('network:metrics');
     if (metricsResult.success) {
-      this.metrics = { ...this.metrics, ...metricsResult.data };
+      this.metrics = { ...this.metrics, ...(metricsResult.data as NetworkMetrics) };
     }
 
     // Load event history
     const historyResult = await this.storage.get('network:event_history');
     if (historyResult.success) {
-      this.eventHistory = historyResult.data || [];
+      this.eventHistory = (historyResult.data as NetworkEvent[]) || [];
     }
   }
 
@@ -423,7 +423,7 @@ export class NetworkService {
 
   private stopMonitoring(): void {
     if (this.monitoringInterval) {
-      clearInterval(this.monitoringInterval);
+      clearInterval(this.monitoringInterval as unknown as number);
       this.monitoringInterval = undefined;
     }
   }
@@ -727,7 +727,7 @@ export type NetworkEventListener = (event: NetworkEvent) => void;
 // ========================================
 
 export function createNetworkService(config?: Partial<NetworkConfig>): NetworkService {
-  return NetworkService.getInstance(config);
+  return NetworkService.getInstance(config as NetworkConfig);
 }
 
 // ========================================

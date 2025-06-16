@@ -2,6 +2,15 @@
 // src/utils/data/types.ts
 // ===========================================
 
+export interface ApiResponse<T> {
+  data: T | null;
+  success: boolean;
+  error?: string;
+  source: string;
+  cached: boolean;
+  timestamp: string;
+}
+
 export interface MarketDataPoint {
   timestamp: string;
   open: number;

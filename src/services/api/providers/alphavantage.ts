@@ -3,24 +3,23 @@
 // AlphaVantage API Integration Service
 // ===========================================
 
-import { BaseApiService, BaseApiConfig, RequestConfig, ApiError } from '../base';
-import {
-  ApiProvider,
-  MarketData,
-  HistoricalDataPoint,
-  AssetSearchResult,
-  TimeInterval,
-  ApiResult,
-  AlphaVantageQuoteResponse
-} from '@/types';
+import { BaseApiService, BaseApiConfig, RequestConfig, ApiError, ApiProvider, ApiResult } from '../base';
+import { MarketData, HistoricalDataPoint } from '@/types';
 
 // ========================================
 // AlphaVantage Specific Types
 // ========================================
 
-export interface AlphaVantageConfig extends BaseApiConfig {
-  apiKey: string;
-}
+export type TimeInterval = 
+  | '1min' 
+  | '5min' 
+  | '15min' 
+  | '30min' 
+  | '1hour' 
+  | '4hour' 
+  | '1day' 
+  | '1week' 
+  | '1month';
 
 interface AlphaVantageTimeSeriesResponse {
   'Meta Data': {
@@ -95,6 +94,35 @@ interface AlphaVantageOverviewResponse {
   ExDividendDate: string;
 }
 
+export interface AssetSearchResult {
+  symbol: string;
+  name: string;
+  type: string;
+  exchange: string;
+  currency: string;
+  country: string;
+  source: ApiProvider;
+}
+
+export interface AlphaVantageQuoteResponse {
+  'Global Quote': {
+    '01. symbol': string;
+    '02. open': string;
+    '03. high': string;
+    '04. low': string;
+    '05. price': string;
+    '06. volume': string;
+    '07. latest trading day': string;
+    '08. previous close': string;
+    '09. change': string;
+    '10. change percent': string;
+  };
+}
+
+export interface AlphaVantageConfig extends BaseApiConfig {
+  apiKey: string;
+}
+
 // ========================================
 // AlphaVantage Service Implementation
 // ========================================
@@ -128,12 +156,12 @@ export class AlphaVantageService extends BaseApiService {
   // ========================================
 
   get providerName(): ApiProvider {
-    return 'alphavantage';
+    return 'alpha_vantage';
   }
 
   normalizeError(error: any): ApiError {
     const baseError = {
-      provider: this.providerName as ApiProvider,
+      provider: this.providerName,
       code: 'UNKNOWN_ERROR',
       message: 'An unknown error occurred'
     };
@@ -217,12 +245,45 @@ export class AlphaVantageService extends BaseApiService {
     const response = await this.makeRequest<AlphaVantageQuoteResponse>(config);
     
     if (response.status === 'error') {
-      return response;
+      return {
+        status: 'error',
+        error: response.error ?? new ApiError({
+          provider: this.providerName,
+          code: 'UNKNOWN_ERROR',
+          message: 'Unknown error occurred'
+        }),
+        timestamp: new Date()
+      };
+    }
+
+    if (!response.data) {
+      return {
+        status: 'error',
+        error: new ApiError({
+          provider: this.providerName,
+          code: 'INVALID_RESPONSE',
+          message: 'No data received from API'
+        }),
+        timestamp: new Date()
+      };
+    }
+
+    const marketData = this.transformQuoteResponse(response.data, symbol);
+    if (!marketData) {
+      return {
+        status: 'error',
+        error: new ApiError({
+          provider: this.providerName,
+          code: 'INVALID_DATA',
+          message: 'Market data is undefined'
+        }),
+        timestamp: new Date()
+      };
     }
 
     return {
       status: 'success',
-      data: this.transformQuoteResponse(response.data, symbol),
+      data: marketData,
       timestamp: new Date()
     };
   }
@@ -252,12 +313,45 @@ export class AlphaVantageService extends BaseApiService {
     const response = await this.makeRequest<AlphaVantageTimeSeriesResponse>(config);
     
     if (response.status === 'error') {
-      return response;
+      return {
+        status: 'error',
+        error: response.error ?? new ApiError({
+          provider: this.providerName,
+          code: 'UNKNOWN_ERROR',
+          message: 'Unknown error occurred'
+        }),
+        timestamp: new Date()
+      };
+    }
+
+    if (!response.data) {
+      return {
+        status: 'error',
+        error: new ApiError({
+          provider: this.providerName,
+          code: 'INVALID_RESPONSE',
+          message: 'No data received from API'
+        }),
+        timestamp: new Date()
+      };
+    }
+
+    const historicalData = this.transformTimeSeriesResponse(response.data);
+    if (!historicalData) {
+      return {
+        status: 'error',
+        error: new ApiError({
+          provider: this.providerName,
+          code: 'INVALID_DATA',
+          message: 'Failed to transform time series response'
+        }),
+        timestamp: new Date()
+      };
     }
 
     return {
       status: 'success',
-      data: this.transformTimeSeriesResponse(response.data),
+      data: historicalData,
       timestamp: new Date()
     };
   }
@@ -276,7 +370,27 @@ export class AlphaVantageService extends BaseApiService {
     const response = await this.makeRequest<AlphaVantageSearchResponse>(config);
     
     if (response.status === 'error') {
-      return response;
+      return {
+        status: 'error',
+        error: response.error || new ApiError({
+          provider: this.providerName,
+          code: 'UNKNOWN_ERROR',
+          message: 'Unknown error occurred'
+        }),
+        timestamp: new Date()
+      };
+    }
+
+    if (!response.data) {
+      return {
+        status: 'error',
+        error: new ApiError({
+          provider: this.providerName,
+          code: 'INVALID_RESPONSE',
+          message: 'No data received from API'
+        }),
+        timestamp: new Date()
+      };
     }
 
     return {
@@ -300,7 +414,27 @@ export class AlphaVantageService extends BaseApiService {
     const response = await this.makeRequest<AlphaVantageOverviewResponse>(config);
     
     if (response.status === 'error') {
-      return response;
+      return {
+        status: 'error',
+        error: response.error || new ApiError({
+          provider: this.providerName,
+          code: 'UNKNOWN_ERROR',
+          message: 'Unknown error occurred'
+        }),
+        timestamp: new Date()
+      };
+    }
+
+    if (!response.data) {
+      return {
+        status: 'error',
+        error: new ApiError({
+          provider: this.providerName,
+          code: 'INVALID_RESPONSE',
+          message: 'No data received from API'
+        }),
+        timestamp: new Date()
+      };
     }
 
     return {
@@ -319,15 +453,13 @@ export class AlphaVantageService extends BaseApiService {
     for (const symbol of symbols) {
       try {
         const result = await this.getQuote(symbol);
-        if (result.status === 'success') {
+        if (result.status === 'success' && result.data) {
           results.push(result.data);
         } else {
-          errors.push(`${symbol}: ${result.error.message}`);
+          errors.push(`${symbol}: ${(result.error?.message) ?? 'Unknown error'}`);
         }
-        
         // Small delay between requests to respect rate limits
-        await this.sleep(200);
-        
+        await this.localSleep(200);
       } catch (error) {
         errors.push(`${symbol}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
@@ -467,10 +599,6 @@ export class AlphaVantageService extends BaseApiService {
     return typeMap[alphaVantageType] || 'stock';
   }
 
-  private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
   // ========================================
   // Advanced Features
   // ========================================
@@ -558,5 +686,9 @@ export class AlphaVantageService extends BaseApiService {
     }
 
     return await this.makeRequest<any>(config);
+  }
+
+  private localSleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }

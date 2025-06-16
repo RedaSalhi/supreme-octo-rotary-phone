@@ -1,7 +1,9 @@
-
 // ===========================================
 // src/utils/validation/forms.ts
 // ===========================================
+
+import { validateSymbol } from './assets';
+import type { ValidationResult } from './schemas';
 
 export interface FormValidationRule<T> {
   required?: boolean;
@@ -19,6 +21,26 @@ export interface FormValidationSchema {
 
 export interface FormValidationErrors {
   [fieldName: string]: string[];
+}
+
+/**
+ * Validate portfolio value
+ */
+function validatePortfolioValue(value: number): ValidationResult {
+  const errors: string[] = [];
+  
+  if (typeof value !== 'number' || !isFinite(value)) {
+    errors.push('Portfolio value must be a finite number');
+  } else if (value < 1000) {
+    errors.push('Portfolio value must be at least $1,000');
+  } else if (value > 1000000000) {
+    errors.push('Portfolio value cannot exceed $1 billion');
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
 }
 
 export function validateForm<T extends Record<string, any>>(

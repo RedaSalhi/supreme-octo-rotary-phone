@@ -7,32 +7,56 @@
 export * from './portfolio';
 
 // Risk metrics and calculations
-export * from './riskMetrics';
+export {
+  calculateAllRiskMetrics,
+  calculateVolatility,
+  calculateSharpeRatio,
+  calculateSortinoRatio,
+  calculateTrackingError,
+  calculateSkewness,
+  calculateKurtosis,
+  calculateMaxDrawdown,
+  calculateCalmarRatio,
+  calculateDownsideDeviation,
+  calculateAnnualizedReturn,
+  calculateCumulativeReturns,
+  calculateRollingVolatility,
+  calculateRollingSharpe,
+  calculateRollingMaxDrawdown,
+  calculatePainIndex,
+  calculateUlcerIndex,
+  calculateBurkeRatio,
+  calculateMartinRatio,
+  calculateTailRatio
+} from './riskMetrics';
 
 // Value at Risk calculations
-export * from './var';
+export {
+  calculateVaR,
+  calculateHistoricalVaR,
+  calculateHistoricalCVaR,
+  calculateMonteCarloVaR,
+  calculateParametricVaR,
+  calculateCVaR
+} from './var';
 
 // CAPM analysis
 export * from './capm';
 
-// Portfolio optimization algorithms
-export * from './optimization';
-
-// Technical indicators
-export * from './indicators';
-
 // Performance attribution
-export * from './attribution';
+export {
+  calculateTimeBasedAttribution,
+  calculateTrackingErrorAttribution
+} from './attribution';
 
 // ===========================================
 // Convenience aggregation functions
 // ===========================================
 
-import { calculateComprehensiveRiskMetrics } from './riskMetrics';
+import { calculateAllRiskMetrics } from './riskMetrics';
 import { calculateVaR } from './var';
 import { calculateCAPM } from './capm';
-import { generateEfficientFrontier, optimizeMaxSharpe, optimizeMinVariance, optimizeRiskParity } from './optimization';
-import { calculateBrinsonAttribution, calculateFactorAttribution, calculateRiskAttribution } from './attribution';
+import { calculateTimeBasedAttribution, calculateTrackingErrorAttribution } from './attribution';
 import type { Asset, Portfolio, PortfolioConstraints } from '../../types';
 
 /**
@@ -44,7 +68,7 @@ export function performCompleteAnalysis(
   riskFreeRate: number = 0.02,
   portfolioValue: number = 1000000
 ) {
-  const riskMetrics = calculateComprehensiveRiskMetrics(
+  const riskMetrics = calculateAllRiskMetrics(
     portfolio.returns,
     benchmarkReturns,
     riskFreeRate
@@ -55,77 +79,25 @@ export function performCompleteAnalysis(
   const capmAnalysis = benchmarkReturns 
     ? calculateCAPM(portfolio.returns, benchmarkReturns, riskFreeRate)
     : null;
+    
+  const attributionAnalysis = benchmarkReturns
+    ? calculateTimeBasedAttribution(portfolio.returns, benchmarkReturns, [portfolio.returns.length])
+    : null;
+    
+  const trackingErrorAnalysis = benchmarkReturns
+    ? calculateTrackingErrorAttribution(portfolio.returns, benchmarkReturns)
+    : null;
   
   return {
     riskMetrics,
     varAnalysis,
     capmAnalysis,
+    attributionAnalysis,
+    trackingErrorAnalysis,
     portfolio: {
       totalValue: portfolio.totalValue,
       assets: portfolio.assets.length,
       lastUpdated: portfolio.updatedAt
-    }
-  };
-}
-
-/**
- * Portfolio optimization suite
- */
-export function performOptimizationSuite(
-  assets: Asset[],
-  constraints: PortfolioConstraints = {},
-  riskFreeRate: number = 0.02
-) {
-  const efficientFrontier = generateEfficientFrontier(assets, [], constraints);
-  const maxSharpe = optimizeMaxSharpe(assets, riskFreeRate, constraints);
-  const minVariance = optimizeMinVariance(assets, constraints);
-  const riskParity = optimizeRiskParity(assets, constraints);
-  
-  return {
-    efficientFrontier,
-    optimizations: {
-      maxSharpe,
-      minVariance,
-      riskParity
-    },
-    summary: {
-      assetsCount: assets.length,
-      constraints,
-      riskFreeRate
-    }
-  };
-}
-
-/**
- * Complete attribution analysis
- */
-export function performAttributionAnalysis(
-  portfolio: Portfolio,
-  benchmarkWeights: { [symbol: string]: number },
-  benchmarkReturns: { [symbol: string]: number[] },
-  sectors: { [symbol: string]: string },
-  factorExposures?: { [symbol: string]: { [factor: string]: number } },
-  factorReturns?: { [factor: string]: number[] }
-) {
-  const brinsonAttribution = calculateBrinsonAttribution(
-    portfolio,
-    benchmarkWeights,
-    benchmarkReturns,
-    sectors
-  );
-  
-  const factorAttribution = factorExposures && factorReturns
-    ? calculateFactorAttribution(portfolio, factorExposures, factorReturns)
-    : null;
-  
-  return {
-    brinsonAttribution,
-    factorAttribution,
-    summary: {
-      activeReturn: brinsonAttribution.activeReturn,
-      allocationEffect: brinsonAttribution.allocationEffect,
-      selectionEffect: brinsonAttribution.selectionEffect,
-      interactionEffect: brinsonAttribution.interactionEffect
     }
   };
 }
@@ -141,13 +113,6 @@ export const FINANCIAL_CONSTANTS = {
     VAR_95: 0.95,
     VAR_99: 0.99,
     VAR_99_9: 0.999
-  },
-  OPTIMIZATION_DEFAULTS: {
-    MAX_ITERATIONS: 1000,
-    CONVERGENCE_TOLERANCE: 1e-6,
-    MIN_WEIGHT: 0.0,
-    MAX_WEIGHT: 1.0,
-    SHORT_SELLING: false
   },
   PERIODS: {
     DAILY: 1,

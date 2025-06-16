@@ -53,6 +53,7 @@ export interface NotificationPayload {
   scheduledFor?: Date;
   channelId?: string;
   tags?: string[];
+  sentAt?: Date;
 }
 
 export interface NotificationAction {
@@ -223,7 +224,7 @@ export class NotificationService {
     // Load scheduled notifications
     const scheduledResult = await this.storage.get('notifications:scheduled');
     if (scheduledResult.success) {
-      const scheduled = scheduledResult.data || [];
+      const scheduled = (scheduledResult.data as ScheduledNotification[]) || [];
       scheduled.forEach((notification: ScheduledNotification) => {
         this.scheduledNotifications.set(notification.id, notification);
       });
@@ -232,7 +233,7 @@ export class NotificationService {
     // Load active alerts
     const alertsResult = await this.storage.get('notifications:alerts');
     if (alertsResult.success) {
-      const alerts = alertsResult.data || [];
+      const alerts = (alertsResult.data as Alert[]) || [];
       alerts.forEach((alert: Alert) => {
         this.activeAlerts.set(alert.id, alert);
       });
@@ -241,7 +242,7 @@ export class NotificationService {
     // Load permissions
     const permissionsResult = await this.storage.get('notifications:permissions');
     if (permissionsResult.success) {
-      this.permissions = { ...this.permissions, ...permissionsResult.data };
+      this.permissions = { ...this.permissions, ...(permissionsResult.data as NotificationPermissions) };
     }
   }
 
@@ -269,7 +270,7 @@ export class NotificationService {
       this.permissions = mockPermissions;
       await this.storage.set('notifications:permissions', this.permissions);
 
-      this.analytics.track('notification', 'permissions_requested', this.permissions.status);
+      this.analytics.trackEvent('notification', 'permissions_requested', this.permissions.status);
 
       return this.permissions;
     } catch (error) {
@@ -308,7 +309,7 @@ export class NotificationService {
         await this.sendRegistrationToServer(this.registrationToken);
       }
 
-      this.analytics.track('notification', 'registration_success', 'push_notifications');
+      this.analytics.trackEvent('notification', 'registration_success', 'push_notifications');
     } catch (error) {
       console.error('Push notification registration failed:', error);
       this.analytics.trackError(error as Error, 'warning', { source: 'push_registration' });
@@ -368,8 +369,8 @@ export class NotificationService {
     try {
       // Add default values
       const notification: NotificationPayload = {
-        id: payload.id || this.generateId(),
         ...payload,
+        id: payload.id || this.generateId(),
         channelId: payload.channelId || 'system_notifications'
       };
 
@@ -379,7 +380,7 @@ export class NotificationService {
       // Store notification history
       await this.storeNotificationHistory(notification);
 
-      this.analytics.track('notification', 'sent', notification.category, undefined, {
+      this.analytics.trackEvent('notification', 'sent', notification.category, undefined, {
         channel: notification.channelId,
         priority: notification.priority
       });
@@ -418,7 +419,7 @@ export class NotificationService {
     // Schedule with platform-specific API
     await this.scheduleWithPlatform(notification);
 
-    this.analytics.track('notification', 'scheduled', notification.category, undefined, {
+    this.analytics.trackEvent('notification', 'scheduled', notification.category, undefined, {
       trigger_time: notification.triggerAt.getTime(),
       has_repeat: !!notification.repeat
     });
@@ -431,7 +432,7 @@ export class NotificationService {
     // Cancel with platform-specific API
     await this.cancelWithPlatform(notificationId);
 
-    this.analytics.track('notification', 'cancelled', 'scheduled');
+    this.analytics.trackEvent('notification', 'cancelled', 'scheduled');
   }
 
   async getScheduledNotifications(): Promise<ScheduledNotification[]> {
@@ -479,7 +480,7 @@ export class NotificationService {
     this.activeAlerts.set(alert.id, alert);
     await this.saveActiveAlerts();
 
-    this.analytics.track('alert', 'created', 'price_alert', targetPrice, {
+    this.analytics.trackEvent('alert', 'created', 'price_alert', targetPrice, {
       symbol,
       direction,
       target_price: targetPrice
@@ -515,7 +516,7 @@ export class NotificationService {
     this.activeAlerts.set(alert.id, alert);
     await this.saveActiveAlerts();
 
-    this.analytics.track('alert', 'created', 'portfolio_alert', threshold, {
+    this.analytics.trackEvent('alert', 'created', 'portfolio_alert', threshold, {
       portfolio_id: portfolioId,
       metric,
       operator,
@@ -529,7 +530,7 @@ export class NotificationService {
     this.activeAlerts.delete(alertId);
     await this.saveActiveAlerts();
 
-    this.analytics.track('alert', 'removed', 'manual');
+    this.analytics.trackEvent('alert', 'removed', 'manual');
   }
 
   async acknowledgeAlert(alertId: string): Promise<void> {
@@ -538,7 +539,7 @@ export class NotificationService {
       alert.acknowledged = true;
       await this.saveActiveAlerts();
 
-      this.analytics.track('alert', 'acknowledged', alert.type);
+      this.analytics.trackEvent('alert', 'acknowledged', alert.type);
     }
   }
 
@@ -634,7 +635,7 @@ export class NotificationService {
 
     await this.saveActiveAlerts();
 
-    this.analytics.track('alert', 'triggered', alert.type, undefined, {
+    this.analytics.trackEvent('alert', 'triggered', alert.type, undefined, {
       alert_id: alert.id,
       severity: alert.severity,
       time_to_trigger: alert.triggeredAt.getTime() - alert.createdAt.getTime()
@@ -659,7 +660,7 @@ export class NotificationService {
     const historyKey = `notifications:history:${new Date().toISOString().split('T')[0]}`;
     const todayHistory = await this.storage.get(historyKey);
     
-    const history = todayHistory.success ? todayHistory.data : [];
+    const history = (todayHistory.success ? todayHistory.data : []) as NotificationPayload[];
     history.push({
       ...notification,
       sentAt: new Date()
@@ -690,7 +691,7 @@ export class NotificationService {
   }
 
   async getNotificationHistory(days: number = 7): Promise<any[]> {
-    const history = [];
+    const history: any[] = [];
     const today = new Date();
 
     for (let i = 0; i < days; i++) {
@@ -701,7 +702,7 @@ export class NotificationService {
       const dayHistory = await this.storage.get(historyKey);
       
       if (dayHistory.success) {
-        history.push(...dayHistory.data);
+        history.push(...(dayHistory.data as any[]));
       }
     }
 
@@ -804,7 +805,7 @@ export type AlertSeverity =
 // ========================================
 
 export function createNotificationService(config?: Partial<NotificationConfig>): NotificationService {
-  return NotificationService.getInstance(config);
+  return NotificationService.getInstance(config as NotificationConfig);
 }
 
 // ========================================

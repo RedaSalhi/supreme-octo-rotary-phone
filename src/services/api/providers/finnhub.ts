@@ -3,20 +3,44 @@
 // Finnhub API Integration Service
 // ===========================================
 
-import { BaseApiService, BaseApiConfig, RequestConfig, ApiError } from '../base';
-import {
-  ApiProvider,
-  MarketData,
-  HistoricalDataPoint,
-  AssetSearchResult,
-  TimeInterval,
-  ApiResult,
-  FinnhubQuoteResponse
-} from '@/types';
+import { BaseApiService, BaseApiConfig, RequestConfig, ApiError, ApiProvider, ApiResult } from '../base';
+import { MarketData, HistoricalDataPoint } from '@/types';
 
 // ========================================
 // Finnhub Specific Types
 // ========================================
+
+export type TimeInterval =
+  | '1min'
+  | '5min'
+  | '15min'
+  | '30min'
+  | '1hour'
+  | '4hour'
+  | '1day'
+  | '1week'
+  | '1month';
+
+export interface AssetSearchResult {
+  symbol: string;
+  name: string;
+  type: string;
+  exchange: string;
+  currency: string;
+  country: string;
+  source: ApiProvider;
+}
+
+export interface FinnhubQuoteResponse {
+  c: number; // Current price
+  d: number; // Change
+  dp: number; // Percent change
+  h: number; // High price of the day
+  l: number; // Low price of the day
+  o: number; // Open price of the day
+  pc: number; // Previous close price
+  t: number; // Timestamp
+}
 
 export interface FinnhubConfig extends BaseApiConfig {
   apiKey: string;
@@ -206,11 +230,28 @@ export class FinnhubService extends BaseApiService {
     };
 
     const response = await this.makeRequest<FinnhubQuoteResponse>(config);
-    
     if (response.status === 'error') {
-      return response;
+      return {
+        status: 'error',
+        error: response.error ?? new ApiError({
+          provider: this.providerName,
+          code: 'UNKNOWN_ERROR',
+          message: 'Unknown error occurred'
+        }),
+        timestamp: new Date()
+      };
     }
-
+    if (!response.data) {
+      return {
+        status: 'error',
+        error: new ApiError({
+          provider: this.providerName,
+          code: 'INVALID_RESPONSE',
+          message: 'No data received from API'
+        }),
+        timestamp: new Date()
+      };
+    }
     return {
       status: 'success',
       data: this.transformQuoteResponse(response.data, symbol),
@@ -219,7 +260,7 @@ export class FinnhubService extends BaseApiService {
   }
 
   async getHistoricalData(
-    symbol: string, 
+    symbol: string,
     interval: TimeInterval = '1day',
     from?: Date,
     to?: Date
@@ -240,11 +281,28 @@ export class FinnhubService extends BaseApiService {
     };
 
     const response = await this.makeRequest<FinnhubCandleResponse>(config);
-    
     if (response.status === 'error') {
-      return response;
+      return {
+        status: 'error',
+        error: response.error ?? new ApiError({
+          provider: this.providerName,
+          code: 'UNKNOWN_ERROR',
+          message: 'Unknown error occurred'
+        }),
+        timestamp: new Date()
+      };
     }
-
+    if (!response.data) {
+      return {
+        status: 'error',
+        error: new ApiError({
+          provider: this.providerName,
+          code: 'INVALID_RESPONSE',
+          message: 'No data received from API'
+        }),
+        timestamp: new Date()
+      };
+    }
     return {
       status: 'success',
       data: this.transformCandleResponse(response.data),
@@ -262,11 +320,28 @@ export class FinnhubService extends BaseApiService {
     };
 
     const response = await this.makeRequest<FinnhubSearchResponse>(config);
-    
     if (response.status === 'error') {
-      return response;
+      return {
+        status: 'error',
+        error: response.error ?? new ApiError({
+          provider: this.providerName,
+          code: 'UNKNOWN_ERROR',
+          message: 'Unknown error occurred'
+        }),
+        timestamp: new Date()
+      };
     }
-
+    if (!response.data) {
+      return {
+        status: 'error',
+        error: new ApiError({
+          provider: this.providerName,
+          code: 'INVALID_RESPONSE',
+          message: 'No data received from API'
+        }),
+        timestamp: new Date()
+      };
+    }
     return {
       status: 'success',
       data: this.transformSearchResponse(response.data),
@@ -284,11 +359,28 @@ export class FinnhubService extends BaseApiService {
     };
 
     const response = await this.makeRequest<FinnhubCompanyProfile>(config);
-    
     if (response.status === 'error') {
-      return response;
+      return {
+        status: 'error',
+        error: response.error ?? new ApiError({
+          provider: this.providerName,
+          code: 'UNKNOWN_ERROR',
+          message: 'Unknown error occurred'
+        }),
+        timestamp: new Date()
+      };
     }
-
+    if (!response.data) {
+      return {
+        status: 'error',
+        error: new ApiError({
+          provider: this.providerName,
+          code: 'INVALID_RESPONSE',
+          message: 'No data received from API'
+        }),
+        timestamp: new Date()
+      };
+    }
     return {
       status: 'success',
       data: this.transformProfileResponse(response.data),
@@ -307,11 +399,28 @@ export class FinnhubService extends BaseApiService {
     };
 
     const response = await this.makeRequest<FinnhubMetrics>(config);
-    
     if (response.status === 'error') {
-      return response;
+      return {
+        status: 'error',
+        error: response.error ?? new ApiError({
+          provider: this.providerName,
+          code: 'UNKNOWN_ERROR',
+          message: 'Unknown error occurred'
+        }),
+        timestamp: new Date()
+      };
     }
-
+    if (!response.data) {
+      return {
+        status: 'error',
+        error: new ApiError({
+          provider: this.providerName,
+          code: 'INVALID_RESPONSE',
+          message: 'No data received from API'
+        }),
+        timestamp: new Date()
+      };
+    }
     return {
       status: 'success',
       data: this.transformMetricsResponse(response.data),
@@ -327,15 +436,13 @@ export class FinnhubService extends BaseApiService {
     for (const symbol of symbols) {
       try {
         const result = await this.getQuote(symbol);
-        if (result.status === 'success') {
+        if (result.status === 'success' && result.data) {
           results.push(result.data);
         } else {
-          errors.push(`${symbol}: ${result.error.message}`);
+          errors.push(`${symbol}: ${(result.error?.message) ?? 'Unknown error'}`);
         }
-        
         // Small delay to respect rate limits
-        await this.sleep(100);
-        
+        await this.localSleep(100);
       } catch (error) {
         errors.push(`${symbol}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
@@ -562,10 +669,6 @@ export class FinnhubService extends BaseApiService {
     return typeMap[finnhubType] || 'stock';
   }
 
-  private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
   // ========================================
   // Advanced Features
   // ========================================
@@ -644,5 +747,9 @@ export class FinnhubService extends BaseApiService {
       this.websocket = undefined;
     }
     this.subscriptions.clear();
+  }
+
+  private localSleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
