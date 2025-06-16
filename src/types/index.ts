@@ -1,56 +1,63 @@
-// Financial data types
-export interface StockData {
-  symbol: string;
-  prices: number[];
-  returns: number[];
-  timestamps: string[];
-  metadata: {
-    source: string;
-    lastUpdated: string;
-    dataQuality: 'Good' | 'Fair' | 'Poor';
-  };
-}
-
-export interface Portfolio {
-  id: string;
-  name: string;
-  assets: Asset[];
-  weights: number[];
-  createdAt: string;
-  lastUpdated: string;
-}
-
+// src/types/index.ts
 export interface Asset {
   symbol: string;
   name: string;
+  price: number;
+  returns: number[];
+  weight?: number;
   sector?: string;
-  weight: number;
-  currentPrice?: number;
-  change24h?: number;
+  marketCap?: number;
+}
+
+export interface Portfolio {
+  assets: Asset[];
+  weights: number[];
+  totalValue: number;
+  returns: number[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface RiskMetrics {
+  volatility: number;
+  sharpeRatio: number;
+  maxDrawdown: number;
+  beta: number;
+  alpha: number;
+  var95: number;
+  var99: number;
+  cvar95: number;
+  cvar99: number;
+  trackingError?: number;
 }
 
 export interface VaRResult {
-  individual?: IndividualVaRResult[];
-  portfolio?: PortfolioVaRResult;
-  method: VaRMethod;
-  confidenceLevel: number;
-  timeframe: string;
-  calculatedAt: string;
+  parametric: {
+    var95: number;
+    var99: number;
+    cvar95: number;
+    cvar99: number;
+  };
+  historical: {
+    var95: number;
+    var99: number;
+    cvar95: number;
+    cvar99: number;
+  };
+  monteCarlo?: {
+    var95: number;
+    var99: number;
+    cvar95: number;
+    cvar99: number;
+    simulations: number;
+  };
 }
 
-export type VaRMethod = 'parametric' | 'historical' | 'monte_carlo';
-
-export interface OptimizationResult {
-  type: 'max_sharpe' | 'min_variance' | 'target_return' | 'target_risk';
-  weights: number[];
-  expectedReturn: number;
-  volatility: number;
+export interface CAPMResult {
+  alpha: number;
+  beta: number;
+  rSquared: number;
   sharpeRatio: number;
-  efficientFrontier?: EfficientFrontierPoint[];
-}
-
-export interface EfficientFrontierPoint {
-  risk: number;
-  return: number;
-  sharpe: number;
+  treynorRatio: number;
+  informationRatio: number;
 }
